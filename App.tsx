@@ -158,6 +158,32 @@ const App: React.FC = () => {
     }
   }, []);
 
+  // Logica di scorrimento automatico migliorata
+  useEffect(() => {
+    if (view === 'result' && analysis) {
+      // Piccolo ritardo per assicurarsi che il DOM sia renderizzato e animato
+      const timer = setTimeout(() => {
+        const resultElement = document.getElementById('analysis-result-start');
+        if (resultElement) {
+          // Scroll mirato all'inizio del contenitore con offset di 40px per 'respiro' visivo
+          const offset = 40;
+          const elementPosition = resultElement.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - offset;
+
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        } else {
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [view, analysis]);
+
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -305,7 +331,7 @@ const App: React.FC = () => {
   const renderResultView = () => {
     if (!analysis) return null;
     return (
-      <div className="max-w-5xl mx-auto py-12 px-4 pb-32 animate-fadeIn">
+      <div id="analysis-result-start" className="max-w-5xl mx-auto py-12 px-4 pb-32 animate-fadeIn">
         <div className="flex flex-wrap justify-between items-center mb-12 gap-4">
           <button onClick={() => setView('input')} className="text-slate-500 hover:text-white flex items-center gap-3 uppercase text-xs tracking-widest group">
             <svg className="w-4 h-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
