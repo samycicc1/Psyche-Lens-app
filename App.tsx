@@ -143,6 +143,9 @@ const App: React.FC = () => {
   const [isDissolving, setIsDissolving] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
 
+  // Tracking per lo scroll iniziale (evita scroll ripetuti sulla stessa analisi)
+  const [lastAnalysisId, setLastAnalysisId] = useState<string | null>(null);
+
   // Chat States
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
@@ -158,31 +161,38 @@ const App: React.FC = () => {
     }
   }, []);
 
-  // Logica di scorrimento automatico migliorata
+  // 1. SCROLL-TOP: Eseguito SOLO all'apparizione iniziale della nuova analisi
   useEffect(() => {
-    if (view === 'result' && analysis) {
-      // Piccolo ritardo per assicurarsi che il DOM sia renderizzato e animato
+    if (view === 'result' && analysis && analysis.title !== lastAnalysisId) {
       const timer = setTimeout(() => {
-        const resultElement = document.getElementById('analysis-result-start');
+        // Portiamo l'utente all'inizio del box risultati con scroll fluido
+        const resultElement = document.getElementById('analysis-result-header');
         if (resultElement) {
-          // Scroll mirato all'inizio del contenitore con offset di 40px per 'respiro' visivo
-          const offset = 40;
-          const elementPosition = resultElement.getBoundingClientRect().top;
-          const offsetPosition = elementPosition + window.pageYOffset - offset;
-
-          window.scrollTo({
-            top: offsetPosition,
-            behavior: 'smooth'
-          });
+          resultElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
         } else {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-      }, 100);
+        setLastAnalysisId(analysis.title);
+      }, 150); // Piccolo delay per assicurare il rendering
       return () => clearTimeout(timer);
-    } else {
+    }
+    
+    // Reset dello scroll per le altre viste
+    if (view !== 'result') {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [view, analysis]);
+  }, [view, analysis, lastAnalysisId]);
+
+  // 2. AUTO-SCROLL CHAT: Eseguito SOLO durante la conversazione attiva
+  useEffect(() => {
+    // Scrolliamo verso il basso solo se ci sono messaggi oltre al saluto iniziale
+    if (view === 'result' && chatMessages.length > 1) {
+      const timer = setTimeout(() => {
+        chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [chatMessages, view]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -190,10 +200,6 @@ const App: React.FC = () => {
       textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
     }
   }, [dreamNarrative]);
-
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [chatMessages]);
 
   const saveToHistory = (newAnalysis: DreamAnalysisResponse, narrative: string) => {
     const entry: SavedDream = {
@@ -248,6 +254,7 @@ const App: React.FC = () => {
     setDreamNarrative('');
     setAnalysis(null);
     setChatMessages([]);
+    setLastAnalysisId(null);
     setView('input');
   };
 
@@ -332,7 +339,7 @@ const App: React.FC = () => {
     if (!analysis) return null;
     return (
       <div id="analysis-result-start" className="max-w-5xl mx-auto py-12 px-4 pb-32 animate-fadeIn">
-        <div className="flex flex-wrap justify-between items-center mb-12 gap-4">
+        <div id="analysis-result-header" className="flex flex-wrap justify-between items-center mb-12 gap-4" style={{ scrollMarginTop: '60px' }}>
           <button onClick={() => setView('input')} className="text-slate-500 hover:text-white flex items-center gap-3 uppercase text-xs tracking-widest group">
             <svg className="w-4 h-4 transition-transform group-hover:-translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Nuova Visione
@@ -384,7 +391,7 @@ const App: React.FC = () => {
         </div>
 
         {/* Chat Section */}
-        <section className="max-w-4xl mx-auto mb-20">
+        <section id="chat-conversation-container" className="max-w-4xl mx-auto mb-20">
           <div className="bg-slate-900/40 border border-indigo-500/10 rounded-[2rem] p-6 md:p-10 shadow-2xl backdrop-blur-xl">
             <h3 className="text-xs uppercase tracking-[0.6em] text-indigo-300 font-bold mb-10 text-center">Dialogo con il Mentore</h3>
             
